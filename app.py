@@ -86,15 +86,14 @@ if uploaded_file:
     pdf_buffer = io.BytesIO()
     pdf.output(pdf_buffer)
     pdf_bytes = pdf_buffer.getvalue()
-
-    # Download button
+    
+    # Display download button
     st.download_button(
         label="📥 Download Proof Certificate (PDF)",
         data=pdf_bytes,
         file_name=f"proof_{file_name}.pdf",
         mime="application/pdf"
     )
-
 # Optional: File re-verification section
 st.markdown(
     '<h3 style="color:#003366;">🔍 Verify a Previously Timestamped File</h3>',
