@@ -1,0 +1,91 @@
+/* tech_ui_style.css - Modern & Professional UI */
+
+body {
+  font-family: 'Roboto', sans-serif;
+  margin: 0;
+  padding: 0;
+  background: #0d1117;
+  color: #c9d1d9;
+}
+
+nav {
+  background-color: #161b22;
+  color: #ffffff;
+  display: flex;
+  justify-content: space-between;
+  padding: 15px 30px;
+  align-items: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.nav-links a {
+  color: #58a6ff;
+  text-decoration: none;
+  margin-left: 25px;
+  font-weight: 500;
+  transition: color 0.3s ease;
+}
+
+.nav-links a:hover {
+  color: #1f6feb;
+}
+
+.logo {
+  font-weight: bold;
+  font-size: 1.4em;
+  color: #f0f6fc;
+}
+
+.hero {
+  text-align: center;
+  padding: 120px 20px;
+  background: linear-gradient(135deg, #0d1117 30%, #161b22);
+  color: #c9d1d9;
+}
+
+.hero .cta {
+  background: #238636;
+  color: white;
+  padding: 14px 28px;
+  font-size: 16px;
+  text-decoration: none;
+  border-radius: 6px;
+  margin-top: 30px;
+  display: inline-block;
+  font-weight: bold;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.4);
+  transition: background 0.3s ease;
+}
+
+.hero .cta:hover {
+  background: #2ea043;
+}
+
+footer {
+  background-color: #161b22;
+  color: #8b949e;
+  text-align: center;
+  padding: 20px;
+  font-size: 0.9rem;
+  border-top: 1px solid #30363d;
+}
+
+.docs {
+  padding: 50px 40px;
+  max-width: 900px;
+  margin: auto;
+  line-height: 1.8;
+}
+
+.docs h1, .docs h2 {
+  color: #f0f6fc;
+}
+
+.docs ul {
+  list-style-type: square;
+  padding-left: 20px;
+}
+
+.docs li {
+  margin-bottom: 16px;
+}
