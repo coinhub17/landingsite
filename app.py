@@ -90,7 +90,7 @@ if uploaded_file:
     # Download button
     st.download_button(
         label="📥 Download Proof Certificate (PDF)",
-        data=buffer,
+        data=pdf_bytes,
         file_name=f"proof_{file_name}.pdf",
         mime="application/pdf"
     )
