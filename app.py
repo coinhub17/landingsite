@@ -84,7 +84,7 @@ if page == "📤 Upload File":
         add_field(pdf, "Timestamp:", timestamp.strftime("%Y-%m-%d %H:%M:%S UTC"))
         add_field(pdf, "User Gmail:", st.session_state.email)
         pdf.ln(5)
-        pdf.set_font("Helvetica", style="B", size=font_size)
+        pdf.set_font("Helvetica", style="B", size=12)
         pdf.set_fill_color(230, 240, 255)
         pdf.set_draw_color(200, 220, 240)
         pdf.multi_cell(0, 10, "This document certifies that the above file was uploaded and hashed at the stated time.", border=1, fill=True)
@@ -206,4 +206,5 @@ elif page == "💳 Pricing":
             customer_email=st.session_state.get("email", "test@example.com")
         )
         st.markdown(f"[👉 Click here to complete payment]({session.url})", unsafe_allow_html=True)
+
 
