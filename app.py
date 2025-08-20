@@ -16,6 +16,13 @@ load_dotenv()
 # ----- CONFIGURATION -----
 stripe.api_key=os.getenv("api_key")
 
+# ----- PAGE CONFIG -----
+st.set_page_config(page_title="IPLOCAL Dashboard", layout="wide")
+
+# ----- SIDEBAR NAVIGATION -----
+page = st.sidebar.radio("Go to", ["📤 Upload File", "📊 Dashboard", "💳 Pricing"])
+
+
 DATABASE = {
     "dbname": os.getenv("DB_NAME"),
     "user": os.getenv("DB_USER"),
@@ -34,12 +41,6 @@ else:
     st.warning("Please log in with Google to use the app.")
     st.stop()
 
-
-# ----- PAGE CONFIG -----
-st.set_page_config(page_title="IPLOCAL Dashboard", layout="wide")
-
-# ----- SIDEBAR NAVIGATION -----
-page = st.sidebar.radio("Go to", ["📤 Upload File", "📊 Dashboard", "💳 Pricing"])
 
 # ----- DATABASE CONNECTION -----
 def get_connection():
@@ -205,6 +206,7 @@ elif page == "💳 Pricing":
             customer_email=st.session_state.get("email", "test@example.com")
         )
         st.markdown(f"[👉 Click here to complete payment]({session.url})", unsafe_allow_html=True)
+
 
 
 
