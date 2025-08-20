@@ -19,8 +19,7 @@ stripe.api_key=os.getenv("api_key")
 # ----- PAGE CONFIG -----
 st.set_page_config(page_title="IPLOCAL Dashboard", layout="wide")
 
-# ----- SIDEBAR NAVIGATION -----
-page = st.sidebar.radio("Go to", ["📤 Upload File", "📊 Dashboard", "💳 Pricing"])
+
 
 
 DATABASE = {
@@ -45,6 +44,9 @@ else:
 # ----- DATABASE CONNECTION -----
 def get_connection():
     return psycopg2.connect(**DATABASE)
+
+# ----- SIDEBAR NAVIGATION -----
+page = st.sidebar.radio("Go to", ["📤 Upload File", "📊 Dashboard", "💳 Pricing"])
 
 # ----- FUNCTION: ADD FIELD TO PDF -----
 def add_field(pdf, label, value, font_size=12, multiline=False):
