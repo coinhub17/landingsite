@@ -3,7 +3,7 @@ import hashlib
 import datetime
 from fpdf import FPDF
 import io
-import mysql.connector
+import psycopg2
 import pandas as pd
 import stripe
 import requests
@@ -42,27 +42,8 @@ else:
 
 
 def get_connection():
-    return mysql.connector.connect(**DATABASE)
+    return psycopg2.connect(**DATABASE)
 
-# Example: store PDF
-def save_certificate(file_name, file_hash, timestamp, email, pdf_data):
-    conn = get_connection()
-    cur = conn.cursor()
-    query = """
-        INSERT INTO certificates (filename, file_hash, timestamp_utc, user_email, pdf_data)
-        VALUES (%s, %s, %s, %s, %s)
-    """
-    cur.execute(query, (file_name, file_hash, timestamp, email, pdf_data))
-    conn.commit()
-    cur.close()
-    conn.close()
-
-# Example: load Dashboard data
-def get_certificates():
-    conn = get_connection()
-    df = pd.read_sql("SELECT id, filename, file_hash, timestamp_utc, user_email FROM certificates ORDER BY timestamp_utc DESC", conn)
-    conn.close()
-    return df
 
 # ----- SIDEBAR NAVIGATION -----
 page = st.sidebar.radio("Go to", ["📤 Upload File", "📊 Dashboard", "💳 Pricing"])
@@ -227,6 +208,7 @@ elif page == "💳 Pricing":
             customer_email=st.session_state.get("email", "test@example.com")
         )
         st.markdown(f"[👉 Click here to complete payment]({session.url})", unsafe_allow_html=True)
+
 
 
 
