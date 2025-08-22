@@ -48,10 +48,8 @@ DATABASE = {
 }
 
 # ---------- LOGIN ----------
-result = login_button(
-    client_id="your-google-client-id.apps.googleusercontent.com",
-    domain="https://iplocal.streamlit.app"
-)
+result = login_button(client_id="Y39100126550-jcg8usii85nfdneeslqadc6ruiubph8e.apps.googleusercontent.com", domain="https://iplocal.streamlit.app")
+
 
 if result:
     st.session_state['email'] = result.get("user", {}).get("email", "unknown")
@@ -238,3 +236,4 @@ elif page == "💳 Pricing":
             customer_email=st.session_state.get("email", "test@example.com")
         )
         st.markdown(f"[👉 Click here to complete payment]({session.url})", unsafe_allow_html=True)
+
