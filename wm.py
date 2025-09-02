@@ -23,7 +23,7 @@ DATABASE = {
     "user": os.getenv("DB_USER"),
     "password": os.getenv("DB_PASSWORD"),
     "host": os.getenv("DB_HOST", "localhost"),
-    "port": os.getenv("DB_PORT", "5432")
+    "port": os.getenv("DB_PORT", "3306")
 }# ip_proof_dashboard.py
 
 import streamlit as st
@@ -236,4 +236,5 @@ elif page == "💳 Pricing":
             customer_email=st.session_state.get("email", "test@example.com")
         )
         st.markdown(f"[👉 Click here to complete payment]({session.url})", unsafe_allow_html=True)
+
 
