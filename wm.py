@@ -1,160 +1,54 @@
-<!DOCTYPE html>
-<html>
-<head>
-<meta charset="UTF-8">
-<title>IP Proof & Verification</title>
+from flask import Flask, request, send_file
+from fpdf import FPDF
+import datetime, io, uuid
 
-<style>
-body { font-family: Arial; background:#f4f6f9; text-align:center; }
-.container {
-  width:600px; margin:50px auto; background:white;
-  padding:30px; border-radius:12px;
-  box-shadow:0 10px 30px rgba(0,0,0,0.1);
-}
-textarea { width:100%; height:120px; margin-top:10px; padding:10px; }
-button { margin-top:15px; padding:10px 20px; background:#003366; color:white; border:none; border-radius:6px; cursor:pointer; }
-button:hover { background:#001f40; }
-.logo { width:120px; margin-bottom:20px; }
-.hash-box { font-size:12px; word-break:break-all; color:#444; margin-top:8px; }
-.section { margin-top:30px; border-top:1px solid #ddd; padding-top:20px; }
-</style>
-</head>
+app = Flask(__name__)
 
-<body>
+def add_field(pdf,label,value):
+    pdf.set_font("Helvetica","B",12)
+    pdf.cell(0,8,label,ln=True)
+    pdf.set_font("Helvetica","",10)
+    pdf.multi_cell(0,8,value)
+    pdf.ln(3)
 
-<div class="container">
+@app.route("/generate", methods=["POST"])
+def generate():
+    data=request.json
 
-<img src="logo.png" class="logo">
+    certificate_id=str(uuid.uuid4())
+    timestamp=datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")
 
-<h2>IP Proof Generator</h2>
+    pdf=FPDF()
+    pdf.add_page()
 
-<input type="file" id="fileInput"><br>
-<div id="fileHashPreview" class="hash-box"></div>
+    # LOGO
+    pdf.image("logo.png",160,10,40)
 
-<textarea id="textInput" placeholder="Enter text to hash..."></textarea>
-<div id="textHashPreview" class="hash-box"></div>
+    pdf.set_font("Helvetica","B",18)
+    pdf.cell(0,15,"IP Timestamp Proof Certificate",ln=True,align="C")
+    pdf.ln(10)
 
-<button onclick="generateCertificate()">Generate Certificate</button>
+    add_field(pdf,"Certificate ID:",certificate_id)
+    add_field(pdf,"Timestamp (UTC):",timestamp)
+    add_field(pdf,"Public IP:",data["ip"])
+    add_field(pdf,"File SHA256:",data["fileHash"])
+    add_field(pdf,"Text SHA256:",data["textHash"])
 
-<div class="section">
-<h3>🔍 Verify Certificate</h3>
+    pdf.ln(5)
+    pdf.set_font("Helvetica","",10)
+    pdf.multi_cell(0,8,
+        "Verification Instructions:\n"
+        "- Re-hash the original file and compare with File SHA256 above.\n"
+        "- Re-hash the original text and compare with Text SHA256 above.\n"
+        "If hashes match, authenticity is verified.\n"
+        "Hashes are timestamp-bound in this certificate."
+    )
 
-<input type="file" id="verifyFile"><br>
-<textarea id="verifyText" placeholder="Paste text to verify..."></textarea>
+    buffer=io.BytesIO()
+    pdf.output(buffer)
+    buffer.seek(0)
 
-<input type="text" id="certificateFileHash" placeholder="Paste File Hash from Certificate">
-<input type="text" id="certificateTextHash" placeholder="Paste Text Hash from Certificate">
+    return send_file(buffer,as_attachment=True,download_name="IP_Certificate.pdf")
 
-<button onclick="verify()">Verify</button>
-
-<div id="verifyResult"></div>
-</div>
-
-</div>
-
-<script>
-async function sha256(buffer){
- const hashBuffer = await crypto.subtle.digest("SHA-256", buffer);
- const hashArray = Array.from(new Uint8Array(hashBuffer));
- return hashArray.map(b=>b.toString(16).padStart(2,'0')).join('');
-}
-
-document.getElementById("fileInput").addEventListener("change", async function(){
- const file = this.files[0];
- if(file){
-   const buffer = await file.arrayBuffer();
-   const hash = await sha256(buffer);
-   document.getElementById("fileHashPreview").innerText = "File Hash: " + hash;
- }
-});
-
-document.getElementById("textInput").addEventListener("input", async function(){
- const text = this.value;
- const buffer = new TextEncoder().encode(text);
- const hash = await sha256(buffer);
- document.getElementById("textHashPreview").innerText = "Text Hash: " + hash;
-});
-
-async function generateCertificate(){
- const file = document.getElementById("fileInput").files[0];
- const text = document.getElementById("textInput").value;
-
- let fileHash="", textHash="";
-
- if(file){
-   const buffer = await file.arrayBuffer();
-   fileHash = await sha256(buffer);
- }
-
- if(text){
-   const buffer = new TextEncoder().encode(text);
-   textHash = await sha256(buffer);
- }
-
- const ipRes = await fetch("https://api.ipify.org?format=json");
- const ipData = await ipRes.json();
-
- const response = await fetch("https://your-backend-url/generate",{
-   method:"POST",
-   headers:{"Content-Type":"application/json"},
-   body:JSON.stringify({
-     fileHash:fileHash,
-     textHash:textHash,
-     ip:ipData.ip
-   })
- });
-
- const blob = await response.blob();
- const url = window.URL.createObjectURL(blob);
- const a=document.createElement("a");
- a.href=url;
- a.download="IP_Certificate.pdf";
- a.click();
-}
-
-// CTRL + ALT + R
-document.addEventListener("keydown", function(e){
- if(e.ctrlKey && e.altKey && e.key.toLowerCase()==="r"){
-   generateCertificate();
- }
-});
-
-async function verify(){
- const verifyFile = document.getElementById("verifyFile").files[0];
- const verifyText = document.getElementById("verifyText").value;
- const certFileHash = document.getElementById("certificateFileHash").value.trim();
- const certTextHash = document.getElementById("certificateTextHash").value.trim();
-
- let results=[];
-
- if(verifyFile && certFileHash){
-   const buffer = await verifyFile.arrayBuffer();
-   const hash = await sha256(buffer);
-   if(hash===certFileHash){
-     results.push("File: VERIFIED ✅");
-   } else {
-     results.push("File: NOT MATCHING ❌");
-   }
- }
-
- if(verifyText && certTextHash){
-   const buffer = new TextEncoder().encode(verifyText);
-   const hash = await sha256(buffer);
-   if(hash===certTextHash){
-     results.push("Text: VERIFIED ✅");
-   } else {
-     results.push("Text: NOT MATCHING ❌");
-   }
- }
-
- document.getElementById("verifyResult").innerHTML = results.join("<br>");
-}
-</script>
-
-</body>
-</html>
-
-
-
-
-
+if __name__=="__main__":
+    app.run()
