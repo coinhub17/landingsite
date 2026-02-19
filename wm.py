@@ -5,26 +5,13 @@ import hashlib
 import datetime
 from fpdf import FPDF
 import io
-import psycopg2
 import pandas as pd
-import stripe
+
 import requests
 from dotenv import load_dotenv
 from streamlit_auth0 import login_button
 import streamlit as st
 import os
-
-load_dotenv()
-# ----- CONFIGURATION -----
-stripe.api_key=os.getenv("api_key")
-
-DATABASE = {
-    "dbname": os.getenv("DB_NAME"),
-    "user": os.getenv("DB_USER"),
-    "password": os.getenv("DB_PASSWORD"),
-    "host": os.getenv("DB_HOST", "localhost"),
-    "port": os.getenv("DB_PORT", "3306")
-}# ip_proof_dashboard.py
 
 import streamlit as st
 import hashlib, datetime, io, os
@@ -33,34 +20,7 @@ from dotenv import load_dotenv
 from fpdf import FPDF
 from streamlit_auth0 import login_button
 
-# ---------- CONFIG (MUST BE FIRST STREAMLIT CALL) ----------
-st.set_page_config(page_title="IPLOCAL Dashboard", layout="wide")
-load_dotenv()
 
-# Stripe + DB settings
-stripe.api_key = os.getenv("STRIPE_API_KEY")
-DATABASE = {
-    "dbname": os.getenv("DB_NAME"),
-    "user": os.getenv("DB_USER"),
-    "password": os.getenv("DB_PASSWORD"),
-    "host": os.getenv("DB_HOST", "localhost"),
-    "port": os.getenv("DB_PORT", "5432")
-}
-
-# ---------- LOGIN ----------
-result = login_button(client_id="Y39100126550-jcg8usii85nfdneeslqadc6ruiubph8e.apps.googleusercontent.com", domain="https://iplocal.streamlit.app")
-
-
-if result:
-    st.session_state['email'] = result.get("user", {}).get("email", "unknown")
-else:
-    st.warning("Please log in with Google to use the app.")
-    st.stop()
-
-# ---------- NAVIGATION ----------
-page = st.sidebar.radio("Go to", ["📤 Upload File", "📊 Dashboard", "💳 Pricing"])
-
-# ---------- PAGES ----------
 if page == "📤 Upload File":
     st.title("📜 IP Proof & Timestamp Generator")
     # ... upload code ...
@@ -69,14 +29,6 @@ elif page == "📊 Dashboard":
     st.title("📊 Certificate Dashboard")
     # ... dashboard code ...
 
-elif page == "💳 Pricing":
-    st.title("💳 Subscription Plans")
-    # ... stripe code ...
-
-def get_connection():
-    return psycopg2.connect(**DATABASE)
-
-# ----- FUNCTION: ADD FIELD TO PDF -----
 def add_field(pdf, label, value, font_size=12, multiline=False):
     pdf.set_font("Helvetica", style="B", size=font_size)
     pdf.set_text_color(30, 30, 30)
@@ -129,32 +81,6 @@ if page == "📤 Upload File":
         buffer.write(pdf_bytes)
         buffer.seek(0)
 
-        # Store to DB
-        conn = get_connection()
-        cur = conn.cursor()
-        cur.execute("""
-            INSERT INTO certificates (filename, file_hash, timestamp_utc, user_email, pdf_data)
-            VALUES (%s, %s, %s, %s, %s)
-        """, (file_name, file_hash, timestamp, st.session_state.email, buffer.getvalue()))
-        conn.commit()
-        cur.close()
-        conn.close()
-
-        st.success("✅ Certificate generated!")
-        st.download_button("📥 Download PDF", buffer, file_name=f"proof_{file_name}.pdf", mime="application/pdf")
-
-# ----- PAGE 2: DASHBOARD -----
-elif page == "📊 Dashboard":
-    st.title("📊 Certificate Dashboard")
-
-    with get_connection() as conn:
-        df = pd.read_sql("SELECT id, filename, file_hash, timestamp_utc, user_email FROM certificates ORDER BY timestamp_utc DESC", conn)
-
-    st.markdown("### Search Certificates")
-    col1, col2 = st.columns(2)
-    search_text = col1.text_input("Search filename, hash or email")
-    date_range = col2.date_input("Filter by date", [])
-
     if search_text:
         df = df[df.apply(lambda row: search_text.lower() in row.astype(str).str.lower().to_string(), axis=1)]
 
@@ -172,69 +98,5 @@ elif page == "📊 Dashboard":
             pdf_blob = cur.fetchone()[0]
             st.download_button("Download PDF", data=pdf_blob, file_name=f"certificate_{selected_id}.pdf", mime="application/pdf")
 
-# ----- PAGE 3: STRIPE PRICING -----
-elif page == "💳 Pricing":
-    st.title("💳 Subscription Plans")
-
-    # Plan details
-    plans = {
-        "Free": {
-            "id": "price_id_free",
-            "features": [
-                "🔓 Access 3 watermarking credits/month",
-                "🖼️ Upload up to 3 images at once",
-                "📄 Basic PDF download",
-                "🔍 Limited support",
-                "🌐 No logo customization"
-            ]
-        },
-        "Pro": {
-            "id": "price_id_pro",
-            "features": [
-                "⚡ 200 watermarking credits/month",
-                "🖼️ Bulk image upload (up to 20)",
-                "✅ Logo and text watermarking",
-                "📥 Priority PDF downloads",
-                "💬 Email support"
-            ]
-        },
-        "Premium": {
-            "id": "price_id_premium",
-            "features": [
-                "🚀 Unlimited watermarking",
-                "🖼️ Unlimited image upload",
-                "🎨 Full logo customization",
-                "📁 Cloud file verification",
-                "🛡️ IP + request tracking dashboard",
-                "🧑‍💻 Priority customer support"
-            ]
-        }
-    }
-
-    # Show plans side by side
-    st.subheader("Compare Plans")
-    cols = st.columns(3)
-    for idx, (plan_name, plan_data) in enumerate(plans.items()):
-        with cols[idx]:
-            st.markdown(f"### {plan_name}")
-            for feature in plan_data["features"]:
-                st.markdown(f"- {feature}")
-
-    # Plan selection and Stripe integration
-    plan_choice = st.radio("Choose a plan", list(plans.keys()))
-    if st.button("Subscribe via Stripe"):
-        stripe.api_key = "your_stripe_secret_key"
-        session = stripe.checkout.Session.create(
-            payment_method_types=["card"],
-            line_items=[{
-                "price": plans[plan_choice]["id"],
-                "quantity": 1
-            }],
-            mode="subscription",
-            success_url="https://yourdomain.com/success",
-            cancel_url="https://yourdomain.com/cancel",
-            customer_email=st.session_state.get("email", "test@example.com")
-        )
-        st.markdown(f"[👉 Click here to complete payment]({session.url})", unsafe_allow_html=True)
 
 
