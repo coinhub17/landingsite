@@ -9,7 +9,6 @@ import pandas as pd
 
 import requests
 from dotenv import load_dotenv
-from streamlit_auth0 import login_button
 import streamlit as st
 import os
 
@@ -97,6 +96,7 @@ if page == "📤 Upload File":
             cur.execute("SELECT pdf_data FROM certificates WHERE id = %s", (selected_id,))
             pdf_blob = cur.fetchone()[0]
             st.download_button("Download PDF", data=pdf_blob, file_name=f"certificate_{selected_id}.pdf", mime="application/pdf")
+
 
 
 
