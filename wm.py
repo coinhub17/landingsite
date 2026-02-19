@@ -80,22 +80,9 @@ if page == "📤 Upload File":
         buffer.write(pdf_bytes)
         buffer.seek(0)
 
-    if search_text:
-        df = df[df.apply(lambda row: search_text.lower() in row.astype(str).str.lower().to_string(), axis=1)]
 
-    if len(date_range) == 2:
-        start, end = date_range
-        df = df[(df['timestamp_utc'] >= pd.to_datetime(start)) & (df['timestamp_utc'] <= pd.to_datetime(end))]
 
-    st.dataframe(df, use_container_width=True)
 
-    selected_id = st.selectbox("Select a certificate to download", df["id"].tolist())
-    if st.button("📥 Download Selected PDF"):
-        with get_connection() as conn:
-            cur = conn.cursor()
-            cur.execute("SELECT pdf_data FROM certificates WHERE id = %s", (selected_id,))
-            pdf_blob = cur.fetchone()[0]
-            st.download_button("Download PDF", data=pdf_blob, file_name=f"certificate_{selected_id}.pdf", mime="application/pdf")
 
 
 
