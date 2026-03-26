@@ -1,111 +1,146 @@
-from flask import Flask, request, send_file, jsonify
+import streamlit as st
+import hashlib, uuid, datetime, io
 from fpdf import FPDF
-import datetime, io, uuid, hashlib
+from PIL import Image
 
-app = Flask(__name__)
+# ---------- CONFIG ----------
+ADMIN_PASSWORD = "KVN_ADMIN_SECRET"
 
-# ---------- IN-MEMORY STORAGE ----------
-cert_store = {}
+# ---------- MEMORY ----------
+if "cert_store" not in st.session_state:
+    st.session_state.cert_store = {}
 
-# ---------- PDF HELPER ----------
-def add_field(pdf, label, value):
-    pdf.set_font("Helvetica", "B", 12)
-    pdf.cell(0, 8, label, ln=True)
-    pdf.set_font("Helvetica", "", 10)
-    pdf.multi_cell(0, 8, value)
-    pdf.ln(3)
+if "last_cert_id" not in st.session_state:
+    st.session_state.last_cert_id = None
 
-# ---------- GENERATE CERTIFICATE ----------
-@app.route("/generate", methods=["POST"])
-def generate():
-    data = request.json or {}
+if "admin_mode" not in st.session_state:
+    st.session_state.admin_mode = False
 
-    ip = data.get("ip", "N/A")
-    file_hash = data.get("fileHash", "")
-    text_hash = data.get("textHash", "")
+# ---------- HASH ----------
+def hash_file(file_bytes):
+    return hashlib.sha256(file_bytes).hexdigest()
 
-    # Validation
-    if not file_hash and not text_hash:
-        return jsonify({"error": "At least one hash required"}), 400
-
-    certificate_id = str(uuid.uuid4())
-    timestamp = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")
-
-    # Signature
-    signature = hashlib.sha256(
-        (file_hash + text_hash + timestamp).encode()
-    ).hexdigest()
-
-    # Store in memory
-    cert_store[certificate_id] = {
-        "id": certificate_id,
-        "timestamp": timestamp,
-        "file_hash": file_hash,
-        "text_hash": text_hash,
-        "ip": ip,
-        "signature": signature
-    }
-
-    # Create PDF
+# ---------- PDF ----------
+def generate_pdf(cert, image_bytes=None):
     pdf = FPDF()
     pdf.add_page()
-
-    try:
-        pdf.image("logo.png", 160, 10, 40)
-    except:
-        pass
 
     pdf.set_font("Helvetica", "B", 18)
     pdf.cell(0, 15, "Kerio Valley IP Protection Certificate", ln=True, align="C")
     pdf.ln(10)
 
-    add_field(pdf, "Certificate ID:", certificate_id)
-    add_field(pdf, "Timestamp (UTC):", timestamp)
-    add_field(pdf, "Public IP:", ip)
-    add_field(pdf, "File SHA256:", file_hash or "N/A")
-    add_field(pdf, "Text SHA256:", text_hash or "N/A")
-    add_field(pdf, "Signature:", signature)
+    # Insert image (if image file)
+    if image_bytes:
+        img = Image.open(io.BytesIO(image_bytes))
+        img_path = "temp.png"
+        img.save(img_path)
 
-    pdf.ln(5)
+        # Add image
+        pdf.image(img_path, x=30, y=50, w=150)
+
+        # Overlay text (simulate watermark)
+        pdf.set_xy(30, 120)
+        pdf.set_font("Helvetica", "B", 10)
+        pdf.set_text_color(150, 150, 150)  # grey (watermark feel)
+
+        pdf.multi_cell(150, 6,
+            f"SHA256:\n{cert['file_hash']}\n\nTimestamp:\n{cert['timestamp']}"
+        )
+
+    else:
+        pdf.set_font("Helvetica", "", 12)
+        pdf.multi_cell(0, 8, "No preview available for this file type.")
+
+    pdf.ln(10)
+
+    pdf.set_text_color(0, 0, 0)
     pdf.set_font("Helvetica", "", 10)
     pdf.multi_cell(0, 8,
-        "Verification Instructions:\n"
-        "- Re-hash the original file and compare with File SHA256 above.\n"
-        "- Re-hash the original text and compare with Text SHA256 above.\n"
-        "- Verify certificate ID via API endpoint.\n"
-        "If hashes match, authenticity is verified.\n"
-        "This certificate is timestamp-bound."
+        "This certificate confirms the existence of the file at the given timestamp.\n"
+        "Verification is done by re-uploading the original file and matching its SHA256 hash."
     )
 
-    # FIXED BUFFER OUTPUT
-    pdf_bytes = pdf.output(dest='S').encode('latin1')
-    buffer = io.BytesIO(pdf_bytes)
+    return pdf.output(dest='S').encode('latin1')
 
-    return send_file(
-        buffer,
-        as_attachment=True,
-        download_name=f"IP_Certificate_{certificate_id}.pdf",
-        mimetype='application/pdf'
-    )
+# ---------- UI ----------
+st.title("Kerio Valley IP Protection System")
 
-# ---------- VERIFY CERTIFICATE ----------
-@app.route("/verify/<cert_id>", methods=["GET"])
-def verify(cert_id):
-    cert = cert_store.get(cert_id)
+# ---------- UPLOAD ----------
+st.header("Upload File")
+
+file = st.file_uploader("Upload file")
+
+if file:
+    content = file.read()
+    file_hash = hash_file(content)
+
+    cert_id = str(uuid.uuid4())
+    timestamp = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")
+
+    st.session_state.cert_store[cert_id] = {
+        "id": cert_id,
+        "file_hash": file_hash,
+        "timestamp": timestamp,
+        "filename": file.name,
+        "file_bytes": content
+    }
+
+    st.session_state.last_cert_id = cert_id
+
+    st.success("File recorded successfully")
+    st.write("Certificate ID:", cert_id)
+    st.write("Hash:", file_hash)
+
+# ---------- VERIFY ----------
+st.header("Verify File")
+
+verify_file = st.file_uploader("Re-upload file to verify", key="verify")
+
+if verify_file:
+    verify_bytes = verify_file.read()
+    verify_hash = hash_file(verify_bytes)
+
+    found = False
+
+    for cert in st.session_state.cert_store.values():
+        if cert["file_hash"] == verify_hash:
+            st.success("✅ File Verified Successfully")
+            st.write("Certificate ID:", cert["id"])
+            st.write("Timestamp:", cert["timestamp"])
+            found = True
+            break
+
+    if not found:
+        st.error("❌ File Not Verified")
+
+# ---------- ADMIN ----------
+st.divider()
+st.subheader("Admin Access")
+
+password = st.text_input("Admin Password", type="password")
+
+if password == ADMIN_PASSWORD:
+    st.session_state.admin_mode = True
+    st.success("Admin mode enabled")
+
+# ---------- DOWNLOAD ----------
+if st.session_state.admin_mode and st.session_state.last_cert_id:
+    cert = st.session_state.cert_store.get(st.session_state.last_cert_id)
 
     if cert:
-        return jsonify({
-            "status": "valid",
-            "certificate": cert
-        })
-    else:
-        return jsonify({"status": "not found"}), 404
+        image_bytes = None
 
-# ---------- DEBUG: VIEW ALL CERTS ----------
-@app.route("/debug/certs", methods=["GET"])
-def all_certs():
-    return jsonify(cert_store)
+        try:
+            Image.open(io.BytesIO(cert["file_bytes"]))
+            image_bytes = cert["file_bytes"]
+        except:
+            pass
 
-# ---------- RUN ----------
-if __name__ == "__main__":
-    app.run(debug=True)
+        pdf = generate_pdf(cert, image_bytes)
+
+        st.download_button(
+            "Download Certificate",
+            data=pdf,
+            file_name=f"KVN_{cert['id']}.pdf",
+            mime="application/pdf"
+        )
